@@ -1,0 +1,20 @@
+Dimensao,Metrica,Meta_Referencia_Imagem,Valor_Pontual_Teste,Bootstrap_Media_1000x,IC_95_Inferior,IC_95_Superior,Observacoes_Metodologicas
+Discriminacao_Temporal,C-Index (CoxPH Isolado L2=0.5),~0.76,0.5097,0.5096,0.5005,0.5186,Sem overfitting in-sample (Treino = 0.5144)
+Discriminacao_Temporal,C-Index (Stacked Ensemble CoxPH OOF),~0.82,0.5087,0.5086,0.4994,0.5176,Probabilidades Out-of-Fold (LGB+XGB+RF) sem leakage (Treino = 0.5132)
+Calibracao,Brier Score (Calibrado Platt OOF 30/70),Minimo erro quadratico,0.2100,0.2099,0.2072,0.2128,Atinge o otimo teorico absoluto para prevalencia 30% (0.30 x 0.70 = 0.2100)
+Calibracao,Brier Score (Bruto Pos-RENN+SMOTE 50/50),-,0.2789,0.2790,0.2777,0.2801,Reflete o shift de prevalencia artificial 50/50 antes da calibracao OOF
+Sensibilidade_Temporal_12m,Sensibilidade Temporal a 1 Ano (t <= 12m),> 70% (vs CEA ~50%),0.8285,0.8285,0.8058,0.8524,Coorte avaliavel a 12m = 15223 doentes (1061 recidivas precoces <= 12m)
+Sensibilidade_Temporal_12m,Especificidade Temporal a 1 Ano (t > 12m),-,0.1779,0.1779,0.1717,0.1842,Trade-off imposto pelo limiar clinico OOF (0.5082) num dataset com AUC ~0.51
+Sensibilidade_Temporal_12m,AUC-ROC Temporal a 1 Ano (Classificador / CoxPH),-,0.5113 / 0.5186,-,-,-,Nivel de acaso estatistico devido a distribuicao uniforme de Time_to_Recurrence
+Sensibilidade_Temporal_12m,Brier Score Temporal a 1 Ano (Stacked CoxPH S(12m)),-,0.0649,-,-,-,Avaliado sobre a probabilidade prevista F(12m|X) = 1 - S(12m|X)
+Simulacao_Contrafactual,Reducao Relativa Media de Risco (Calibrado OOF),46.8%,+0.31%,-,-,-,Coorte elegivel no Teste = 3486 doentes em acompanhamento rigoroso
+Simulacao_Contrafactual,Reducao Relativa Media de Risco (Hazard CoxPH),46.8%,+0.15%,-,-,-,Reflete honestamente a independencia estatistica entre covariaveis e alvo no CSV
+Simulacao_Contrafactual,Reducao Relativa no Subgrupo Respondedor (Score Bruto),46.8%,8.68% (P95: 20.39% | Max: 30.94%),-,-,-,Variancia local das arvores nos doentes com reducao aparente de score bruto
+Validacao_Global,AUC-ROC (Teste Cego 20%),Protocolo CV=5 + 1000 Bootstraps,0.4990,0.4990,0.4900,0.5086,Alinhado com CV=5 In-Fold (LGB: 0.5049 | XGB: 0.5044 | RF: 0.5031)
+Validacao_Global,AUPRC (Precision-Recall AUC),Protocolo CV=5 + 1000 Bootstraps,0.2998,0.3001,0.2911,0.3104,Igual a prevalencia basal da classe positiva (30.00%)
+Validacao_Global,F1-Macro (Limiar Clinico OOF = 0.5082),Protocolo CV=5 + 1000 Bootstraps,0.3606,0.3604,0.3537,0.3673,Com limiar Youden's J OOF (0.5678) o F1-Macro sobe para 0.4904
+Validacao_Global,F1-Positivo (Classe 1 - Recidiva),Protocolo CV=5 + 1000 Bootstraps,0.4397,0.4394,0.4304,0.4485,F1 da classe minoritaria (vs 0.0000 no baseline desbalanceado)
+Validacao_Global,Recall / Sensibilidade Global (Classe 1),Protocolo CV=5 + 1000 Bootstraps,0.8234,0.8233,0.8125,0.8332,4372 recidivas detetadas em 5310 casos reais no conjunto de Teste
+Validacao_Global,Especificidade Global (Classe 0),Protocolo CV=5 + 1000 Bootstraps,0.1763,0.1762,0.1694,0.1826,2184 verdadeiros negativos em 12389 casos sem recidiva
+Validacao_Global,Precision / VPP (Classe 1),Protocolo CV=5 + 1000 Bootstraps,0.2999,0.2997,0.2919,0.3076,Valor Preditivo Positivo igual a prevalencia real de 30.00%
+
