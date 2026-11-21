@@ -2,7 +2,9 @@
 
 Repositório estruturado sob o princípio de **Separation of Concerns**:
 - **Treino e Validação Científica ([`Colorectal_Cancer_Prognosis_V2.ipynb`](./Colorectal_Cancer_Prognosis_V2.ipynb))**: Executa o protocolo completo em 5 Fases (Zero Data Leakage, amostragem híbrida `RENN + SMOTE` *In-Fold*, otimização de hiperparâmetros com CV=5, calibração de Platt OOF, sobrevivência temporal CoxPH, 1.000 iterações de *bootstrapping*, curvas DCA e simulação contrafactual) e exporta apenas o modelo vencedor e as melhores métricas.
-- **Interface Clínica de Decisão ([`app.py`](./app.py))**: Aplicação web em Streamlit focada exclusivamente em inferência clínica limpa (validação Pydantic v2, previsão de sobrevivência a 1, 3 e 5 anos, explicabilidade local SHAP/LIME e simulador contrafactual *What-If*).
+- **Interface Clínica de Decisão ([`app.py`](./app.py))**: Aplicação web em Streamlit focada exclusivamente em inferência clínica, alinhada com o notebook: formulário com as **26 covariáveis independentes** (validação Pydantic v2 e winsorização 5%–95% do treino), classificador `LightGBM + Platt OOF + limiar clínico 0.5082`, projeção de **sobrevida livre de recidiva** (CoxPH) a 12, 36 e 59 meses (máximo observado no treino), estratificação de risco pela **mediana** (Baixo/Alto risco), explicabilidade local SHAP (`TreeExplainer` no LightGBM e `Explainer` no CoxPH) e LIME, e simulador contrafactual com os **8 fatores modificáveis** da Fase 5.3. Todos os rótulos estão em português.
+
+> **Nota sobre os resultados:** o dataset é sintético e as covariáveis têm associação quase nula com o desfecho (AUC ≈ 0.50; C-Index ≈ 0.51; coeficientes de Cox com |coef| ≤ 0.013, HR entre 0.987 e 1.007). Por isso, alterar variáveis na interface produz variações muito pequenas nas previsões; isto reflete os dados, não um erro do pipeline.
 
 ---
 
