@@ -17,73 +17,131 @@ border-radius:14px;padding:20px;text-align:center;box-shadow:0 4px 14px rgba(0,0
 </style>
 """
 
+HORIZON_VLINES = ((12, "1a"), (36, "3a"), (59, "59m (máx.)"))
+
 
 def inject_css() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
 
 
-def render_metric_card(label: str, probability: float, delta: Optional[float] = None) -> None:
-    """Card showing a survival probability (0-1) with optional delta vs. baseline."""
-    color = "#34d399" if probability >= .75 else "#fbbf24" if probability >= .5 else "#f87171"
+def render_metric_card(
+    label: str, probability: float, delta: Optional[float] = None, invert_color: bool = False
+) -> None:
+    """Card showing a probability (0-1) with optional delta vs. baseline."""
+    if invert_color:
+        color = "#f87171" if probability >= .5 else "#fbbf24" if probability >= .3 else "#34d399"
+    else:
+        color = "#34d399" if probability >= .75 else "#fbbf24" if probability >= .5 else "#f87171"
     d = ""
     if delta is not None:
         d = f'<div class="delta">{delta * 100:+.1f} p.p. vs. cenário base</div>'
-    st.markdown(f'<div class="metric-card"><div class="label">{label}</div>'
-                f'<div class="value" style="color:{color}">{probability * 100:.1f}%</div>{d}</div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="metric-card"><div class="label">{label}</div>'
+        f'<div class="value" style="color:{color}">{probability * 100:.1f}%</div>{d}</div>',
+        unsafe_allow_html=True,
+    )
 
 
-def survival_figure(curve: pd.DataFrame, scenario: Optional[pd.DataFrame] = None,
-                    scenario_label: str = "Cenário simulado") -> go.Figure:
-    """Survival curve over months, optionally overlaying a counterfactual."""
+def survival_figure(
+    curve: pd.DataFrame,
+    scenario: Optional[pd.DataFrame] = None,
+    scenario_label: str = "Cenário simulado",
+) -> go.Figure:
+    """Recurrence-free survival curve over months (0..59), optionally overlaying a counterfactual."""
     fig = go.Figure()
-    fig.add_scatter(x=curve["month"], y=curve["survival"], mode="lines",
-                    name="Cenário atual", line=dict(color="#38bdf8", width=3, shape="hv"))
+    fig.add_scatter(
+        x=curve["month"],
+        y=curve["survival"],
+        mode="lines",
+        name="Cenário atual",
+        line=dict(color="#38bdf8", width=3, shape="hv"),
+    )
     if scenario is not None:
-        fig.add_scatter(x=scenario["month"], y=scenario["survival"], mode="lines",
-                        name=scenario_label, line=dict(color="#34d399", width=3, dash="dash", shape="hv"),
-                        fill="tonexty", fillcolor="rgba(52,211,153,.12)")
-    for h in (12, 36, 60):
-        fig.add_vline(x=h, line_dash="dot", line_color="#64748b")
-    fig.update_layout(template="plotly_dark", height=420, xaxis_title="Meses",
-                      yaxis_title="Probabilidade de sobrevivência",
-                      yaxis=dict(range=[0, 1.02], tickformat=".0%"),
-                      legend=dict(orientation="h", y=1.1))
+        fig.add_scatter(
+            x=scenario["month"],
+            y=scenario["survival"],
+            mode="lines",
+            name=scenario_label,
+            line=dict(color="#34d399", width=3, dash="dash", shape="hv"),
+            fill="tonexty",
+            fillcolor="rgba(52,211,153,.12)",
+        )
+    for h, tag in HORIZON_VLINES:
+        fig.add_vline(x=h, line_dash="dot", line_color="#64748b", annotation_text=tag, annotation_position="top")
+    fig.update_layout(
+        template="plotly_dark",
+        height=420,
+        xaxis_title="Tempo de seguimento (meses)",
+        yaxis_title="Probabilidade livre de recidiva S(t)",
+        yaxis=dict(range=[0, 1.02], tickformat=".0%"),
+        legend=dict(orientation="h", y=1.1),
+    )
     return fig
 
 
-STRATA_COLORS = {"Baixo risco": "#34d399", "Risco intermédio": "#fbbf24", "Alto risco": "#f87171"}
+STRATA_COLORS = {
+    "Baixo risco": "#34d399",
+    "Alto risco": "#f87171",
+}
 
 
 def strata_figure(strata: dict, patient_curve: pd.DataFrame) -> go.Figure:
-    """Stratified Kaplan-Meier-style curves (low/medium/high risk) plus the patient."""
+    """Median-stratified recurrence-free survival curves (low/high risk) plus the patient."""
     fig = go.Figure()
     for name, df in strata["curves"].items():
-        fig.add_scatter(x=df["month"], y=df["survival"], mode="lines", name=name,
-                        line=dict(color=STRATA_COLORS[name], width=2, shape="hv"),
-                        hovertemplate="%{x} meses: %{y:.1%}<extra>" + name + "</extra>")
-    fig.add_scatter(x=patient_curve["month"], y=patient_curve["survival"], mode="lines",
-                    name="Doente", line=dict(color="#38bdf8", width=4, shape="hv"),
-                    hovertemplate="%{x} meses: %{y:.1%}<extra>Doente</extra>")
-    for h in (12, 36, 60):
-        fig.add_vline(x=h, line_dash="dot", line_color="#64748b",
-                      annotation_text=f"{h // 12}a", annotation_position="top")
-    fig.update_layout(template="plotly_dark", height=450, xaxis_title="Meses",
-                      yaxis_title="Probabilidade de sobrevivência",
-                      yaxis=dict(range=[0, 1.02], tickformat=".0%"),
-                      legend=dict(orientation="h", y=1.12), hovermode="x unified")
+        fig.add_scatter(
+            x=df["month"],
+            y=df["survival"],
+            mode="lines",
+            name=name,
+            line=dict(color=STRATA_COLORS.get(name, "#94a3b8"), width=2, shape="hv"),
+            hovertemplate="%{x} meses: %{y:.1%}<extra>" + name + "</extra>",
+        )
+    fig.add_scatter(
+        x=patient_curve["month"],
+        y=patient_curve["survival"],
+        mode="lines",
+        name="Doente",
+        line=dict(color="#38bdf8", width=4, shape="hv"),
+        hovertemplate="%{x} meses: %{y:.1%}<extra>Doente</extra>",
+    )
+    for h, tag in HORIZON_VLINES:
+        fig.add_vline(x=h, line_dash="dot", line_color="#64748b", annotation_text=tag, annotation_position="top")
+    fig.update_layout(
+        template="plotly_dark",
+        height=450,
+        xaxis_title="Tempo de seguimento (meses)",
+        yaxis_title="Probabilidade livre de recidiva S(t)",
+        yaxis=dict(range=[0, 1.02], tickformat=".0%"),
+        legend=dict(orientation="h", y=1.12),
+        hovermode="x unified",
+    )
     return fig
 
 
 def risk_reduction_figure(labels: list, values: list, highlight: Optional[str] = None) -> go.Figure:
     """Horizontal bar chart of % hazard reduction per simulated intervention."""
-    colors = ["#38bdf8" if l == highlight else "#34d399" if v > 0 else "#64748b"
-              for l, v in zip(labels, values)]
-    fig = go.Figure(go.Bar(x=values, y=labels, orientation="h", marker_color=colors,
-                           text=[f"{v:.1f}%" for v in values], textposition="outside"))
-    fig.update_layout(template="plotly_dark", height=80 + 55 * len(labels),
-                      xaxis_title="Redução relativa do risco (%)", yaxis=dict(autorange="reversed"),
-                      margin=dict(l=10, r=40, t=20, b=10))
+    colors = [
+        "#38bdf8" if l == highlight else "#34d399" if v > 0 else "#64748b"
+        for l, v in zip(labels, values)
+    ]
+    fig = go.Figure(
+        go.Bar(
+            x=values,
+            y=labels,
+            orientation="h",
+            marker_color=colors,
+            text=[f"{v:.2f}%" for v in values],
+            textposition="outside",
+        )
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        height=80 + 55 * len(labels),
+        xaxis_title="Redução relativa do risco (%)",
+        yaxis=dict(autorange="reversed"),
+        margin=dict(l=10, r=50, t=20, b=10),
+    )
     return fig
 
 
@@ -91,23 +149,27 @@ def explain_exception(exc: Exception) -> str:
     """Translate a technical exception into a likely cause and a suggested fix."""
     msg = str(exc)
     if isinstance(exc, KeyError) or "not in index" in msg or "columns" in msg.lower():
-        return ("Causa provável: as colunas esperadas pelo modelo não coincidem com as usadas "
-                "pela aplicação (lista `FEATURE_COLUMNS` em `src/inference.py`). "
-                "Solução: alinhe essa lista com as variáveis do treino.")
+        return (
+            "Causa provável: as colunas esperadas pelo modelo não coincidem com as usadas "
+            "pela aplicação (lista `FEATURE_COLUMNS` em `src/inference.py`). "
+            "Solução: alinhe essa lista com as variáveis do treino."
+        )
     if isinstance(exc, AttributeError):
-        return ("Causa provável: o ficheiro .pkl não é um modelo `lifelines.CoxPHFitter` (ou tem "
-                "outra versão) e não expõe o método pedido. Solução: exporte o modelo como "
-                "CoxPHFitter ou adapte `src/inference.py` à interface do seu modelo.")
+        return (
+            "Causa provável: o ficheiro .pkl não é um modelo `lifelines.CoxPHFitter` (ou tem "
+            "outra versão) e não expõe o método pedido. Solução: exporte o modelo como "
+            "CoxPHFitter ou adapte `src/inference.py` à interface do seu modelo."
+        )
     if isinstance(exc, (ValueError, TypeError)):
-        return ("Causa provável: os dados enviados ao modelo têm formato ou valores que ele não "
-                "aceita (por exemplo NaN, tipo errado ou número de colunas diferente). "
-                "Solução: confirme os campos da barra lateral e a coorte de referência.")
+        return (
+            "Causa provável: os dados enviados ao modelo têm formato ou valores que ele não "
+            "aceita (por exemplo NaN, tipo errado ou número de colunas diferente). "
+            "Solução: confirme os campos da barra lateral e a coorte de referência."
+        )
     if isinstance(exc, (ImportError, ModuleNotFoundError)):
-        return ("Causa provável: falta uma biblioteca no ambiente Python. "
-                "Solução: execute `pip install -r requirements.txt`.")
+        return "Causa provável: falta uma biblioteca no ambiente Python. Solução: execute `pip install -r requirements.txt`."
     if isinstance(exc, (FileNotFoundError, PermissionError, OSError)):
-        return ("Causa provável: um ficheiro necessário não existe ou não pode ser lido. "
-                "Solução: verifique a pasta `models/` e as permissões.")
+        return "Causa provável: um ficheiro necessário não existe ou não pode ser lido. Solução: verifique a pasta `models/` e as permissões."
     return "Causa desconhecida: consulte os detalhes técnicos abaixo."
 
 
